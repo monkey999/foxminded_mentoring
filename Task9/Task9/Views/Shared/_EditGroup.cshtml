@@ -1,0 +1,24 @@
+﻿@model GroupUpdateDto
+@{
+    ViewBag.Title = "Edit Group";
+}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <style>
+
+    </style>
+</head>
+<body>
+    <h1>Edit Group</h1>
+    <form action="/Group/EditGroup" method="post">
+        <input type="hidden" name="id" value="@Model.Id" />
+        <input type="hidden" name="courseId" value="@Model.CourseId" />
+        <label for="Name">Group Name:</label>
+        <input type="text" name="Name" id="Name" value="@Model.Name" />
+        <br />
+        <input type="submit" value="Save" />
+    </form>
+</body>
+</html>

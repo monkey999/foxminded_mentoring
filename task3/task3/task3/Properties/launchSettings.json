@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "task3": {
+      "commandName": "Project",
+      "commandLineArgs": "\"C:\\\\Users\\\\Andrey\\\\source\\\\repos\\\\task3\\\\task3\\\\num_dataset.txt\""
+    }
+  }
+}

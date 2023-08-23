@@ -1,0 +1,138 @@
+﻿@model IEnumerable<StudentGetDto>
+@{
+    ViewBag.Title = "Students";
+}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            display: flex;
+        }
+
+        .student-list {
+            flex: 1;
+            margin-right: 20px;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        .table th,
+        .table td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .table th {
+            background-color: #f9f9f9;
+            font-weight: bold;
+        }
+
+        .table a.button {
+            display: inline-block;
+            padding: 8px 12px;
+            background-color: #4CAF50;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 4px;
+            transition: background-color 0.3s ease;
+        }
+
+        .table a.button:hover {
+            background-color: #45a049;
+        }
+
+        .edit-form {
+            flex: 1;
+            max-width: 300px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="student-list">
+            <h1>@ViewBag.Title</h1>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Surname</th>
+                        <th>Group name</th>
+                        <th>Edit</th>
+                        <th>Delete</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var student in Model)
+                    {
+                        <tr>
+                            <td>@student.FirstName</td>
+                            <td>@student.LastName</td>
+                            <td>@student.Group.Name</td>
+                            <td>
+                                <a href="javascript:void(0);" onclick="loadStudentEditForm(@student.Id)" class="button">Edit</a>
+                            </td>
+                            <td>
+                                <a href="javascript:void(0);" onclick="loadDeleteStudentForm(@student.Id)" class="button">Delete</a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="edit-form">
+            <div id="editStudFormContainer"></div>
+        </div>
+        <div id="deleteStudFormContainer"></div>
+    </div>
+
+    <script>
+        function loadStudentEditForm(id)
+        {
+            var editStudFormContainer = document.getElementById('editStudFormContainer');
+            editStudFormContainer.innerHTML = '';
+
+            var xhr = new XMLHttpRequest();
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    editStudFormContainer.innerHTML = xhr.responseText;
+                }
+            };
+
+            xhr.open('GET', '/Student/EditStudent?id=' + id, true);
+            xhr.send();
+        }
+
+        function loadDeleteStudentForm(id)
+        {
+            var deleteStudFormContainer = document.getElementById('deleteStudFormContainer');
+            deleteStudFormContainer.innerHTML = '';
+
+            var xhr = new XMLHttpRequest();
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    deleteStudFormContainer.innerHTML = xhr.responseText;
+                }
+            };
+
+            xhr.open('GET', '/Student/DeleteStudent?id=' + id, true);
+            xhr.send();
+        }
+    </script>
+</body>
+</html>
+

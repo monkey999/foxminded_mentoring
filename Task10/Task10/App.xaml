@@ -1,0 +1,84 @@
+﻿<Application x:Class="Task10.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:viewModels="clr-namespace:Task10.ViewModels"
+             xmlns:views="clr-namespace:Task10.Views"
+            >
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/Styles/Common.xaml"/>
+                <ResourceDictionary Source="/Styles/NavigationBar.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <Style TargetType="Button">
+                <Setter Property="Padding" Value="10 5"/>
+            </Style>
+
+            <Style TargetType="TextBox">
+                <Setter Property="Padding" Value="2"/>
+            </Style>
+
+            <Style x:Key="Header" TargetType="TextBlock">
+                <Setter Property="FontSize" Value="24"/>
+            </Style>
+
+            <DataTemplate DataType="{x:Type viewModels:HomeViewModel}">
+                <views:HomeView/>
+            </DataTemplate>
+
+            <DataTemplate DataType="{x:Type viewModels:CoursesViewModel}">
+                <views:CoursesView/>
+            </DataTemplate>
+
+            <DataTemplate DataType="{x:Type viewModels:GroupsViewModel}">
+                <views:GroupsView/>
+            </DataTemplate>
+
+            <DataTemplate DataType="{x:Type viewModels:TeachersViewModel}">
+                <views:TeachersView/>
+            </DataTemplate>
+
+            <DataTemplate DataType="{x:Type viewModels:StudentsViewModel}">
+                <views:StudentsView/>
+            </DataTemplate>
+
+            <DataTemplate DataType="{x:Type viewModels:CreateGroupViewModel}">
+                <views:CreateGroup/>
+            </DataTemplate>
+
+            <DataTemplate DataType="{x:Type viewModels:DeleteGroupViewModel}">
+                <views:DeleteGroup/>
+            </DataTemplate>
+
+            <DataTemplate DataType="{x:Type viewModels:UpdateGroupViewModel}">
+                <views:UpdateGroup/>
+            </DataTemplate>
+
+            <DataTemplate DataType="{x:Type viewModels:CreateStudentViewModel}">
+                <views:CreateStudent/>
+            </DataTemplate>
+
+            <DataTemplate DataType="{x:Type viewModels:UpdateStudentViewModel}">
+                <views:UpdateStudent/>
+            </DataTemplate>
+
+            <DataTemplate DataType="{x:Type viewModels:DeleteStudentViewModel}">
+                <views:DeleteStudent/>
+            </DataTemplate>
+
+            <DataTemplate DataType="{x:Type viewModels:CreateTeacherViewModel}">
+                <views:CreateTeacher/>
+            </DataTemplate>
+
+            <DataTemplate DataType="{x:Type viewModels:UpdateTeacherViewModel}">
+                <views:UpdateTeacher/>
+            </DataTemplate>
+
+            <DataTemplate DataType="{x:Type viewModels:DeleteTeacherViewModel}">
+                <views:DeleteTeacher/>
+            </DataTemplate>
+
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

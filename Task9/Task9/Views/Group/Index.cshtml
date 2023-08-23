@@ -1,0 +1,123 @@
+﻿@model IEnumerable<GroupGetDto>
+@{
+    ViewBag.Title = "Groups";
+}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        .table th,
+        .table td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .table th {
+            background-color: #f9f9f9;
+            font-weight: bold;
+        }
+
+        .table a.button {
+            display: inline-block;
+            padding: 8px 12px;
+            background-color: #4CAF50;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 4px;
+            transition: background-color 0.3s ease;
+        }
+
+        .table a.button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>@ViewBag.Title</h1>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Group ID</th>
+                    <th>Group Name</th>
+                    <th>Edit</th>
+                    <th>Delete</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var group in Model)
+                {
+                    <tr>
+                        <td>@group.Id</td>
+                        <td>
+                            <a href="/Student/GetStudentsByGroupId?groupId=@group.CourseId" class="button">@group.Name</a>
+                        </td>
+                        <td>
+                            <a href="javascript:void(0);" onclick="loadEditForm(@group.Id)" class="button">Edit</a>
+                        </td>
+                        <td>
+                            <a href="javascript:void(0);" onclick="deleteGroup(@group.Id)" class="button">Delete</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <div id="editFormContainer"></div>
+        <div id="deleteFormContainer"></div>
+    </div>
+
+    <script>
+        function loadEditForm(id)
+        {
+            var editFormContainer = document.getElementById('editFormContainer');
+            editFormContainer.innerHTML = '';
+
+            var xhr = new XMLHttpRequest();
+            xhr.onreadystatechange = function ()
+            {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    editFormContainer.innerHTML = xhr.responseText;
+                }
+            };
+
+            xhr.open('GET', '/Group/EditGroup?id=' + id, true);
+            xhr.send();
+        }
+
+        function deleteGroup(id)
+        {
+            var deleteFormContainer = document.getElementById('deleteFormContainer');
+            deleteFormContainer.innerHTML = '';
+
+            var xhr = new XMLHttpRequest();
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    deleteFormContainer.innerHTML = xhr.responseText;
+                }
+            };
+
+            xhr.open('GET', '/Group/DeleteGroup?id=' + id, true);
+            xhr.send();
+        }
+    </script>
+</body>
+</html>
