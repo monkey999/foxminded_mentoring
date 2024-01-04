@@ -1,153 +1,243 @@
 ﻿using AutoMapper;
+using DataAccess.Specifications.CategorySpecs;
 using Domain.Models;
 using Domain.RepoInterfaces;
 using Domain.ValueObjects;
 using Logic.DTO_Contracts.Requests.Create;
 using Logic.DTO_Contracts.Requests.Update;
 using Logic.DTO_Contracts.Responses.Create;
+using Logic.DTO_Contracts.Responses.Delete;
 using Logic.DTO_Contracts.Responses.Get;
 using Logic.DTO_Contracts.Responses.Update;
 using Logic.ServiceInterfaces;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.JsonPatch;
+using Microsoft.IdentityModel.Tokens;
+using System.Transactions;
 
 namespace Logic.Services
 {
     public class CategoryService : ICategoryService
     {
-        private readonly IUnitOfWork _unitOfWork;
+        private readonly IUnitOfWOrk _unitOfWork;
         private readonly IMapper _mapper;
+        private readonly ICategoryRepo _categoryRepo;
 
-        public CategoryService(IUnitOfWork unitOfWork, IMapper mapper)
+        public CategoryService(IUnitOfWOrk unitOfWork, IMapper mapper, ICategoryRepo categoryRepo)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
+            _categoryRepo = categoryRepo;
         }
 
-        public async Task<bool> CreateCategoryAsync(CreateCategoryReqDTO categoryDto)
+        public async Task<CreateCategoryRespDTO> CreateCategoryAsync(CreateCategoryReqDTO categoryDto, CancellationToken cancellationToken)
         {
-            var category = _mapper.Map<Category>(categoryDto);
-
-            await _unitOfWork.Categories.AddAsync(category);
-
-            var created = await _unitOfWork.SaveChangesAsyncWithResult();
-
-            return created > 0;
-        }
-
-        public async Task<CreateCategoryRespDTO> CreateCategoryWithResultAsync(CreateCategoryReqDTO categoryDto)
-        {
-            var category = _mapper.Map<Category>(categoryDto);
-
-            await _unitOfWork.Categories.AddAsync(category);
-
-            var created = await _unitOfWork.SaveChangesAsyncWithResult();
-
-            if (created > 0)
+            using (var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled))
             {
+                var category = _mapper.Map<Category>(categoryDto);
+
+                await _categoryRepo.AddAsync(category, cancellationToken);
+
                 var response = _mapper.Map<CreateCategoryRespDTO>(category);
 
-                return response;
-            }
-
-            return new CreateCategoryRespDTO
-            {
-                ErrorMessage = new ErrorMessage
+                if ((await _unitOfWork.SaveChangesAsyncWithResult(cancellationToken)) == 0)
                 {
-                    StatusCode = 500,
-                    Message = "Error occurred while creating category."
+                    return new CreateCategoryRespDTO
+                    {
+                        ErrorMessage = new ErrorMessage
+                        {
+                            StatusCode = 400,
+                            Message = "Category wasn't created!"
+                        }
+                    };
                 }
-            };
-        }
 
-        public async Task<bool> DeleteCategoryAsync(Guid categoryId)
-        {
-            var category = await GetCategoryByIdAsync(categoryId);
-
-            if (category == null)
-            {
-                return false;
-            }
-
-            _unitOfWork.Categories.RemoveById(categoryId);
-
-            var deleted = await _unitOfWork.SaveChangesAsyncWithResult();
-
-            return deleted > 0;
-        }
-
-        public async Task<GetCategoryRespDto> GetAllCategoriesAsync()
-        {
-            var categories = await _unitOfWork.Categories.GetAll().OrderBy(x => x.Id).ToListAsync();
-
-            if (categories != null)
-            {
-                var response = new GetCategoryRespDto
-                {
-                    Categories = _mapper.Map<IEnumerable<GetCategoryRespDto.CategoryRespDto>>(categories)
-                };
+                scope.Complete();
 
                 return response;
             }
-
-            return new GetCategoryRespDto
-            {
-                ErrorMessage = new ErrorMessage
-                {
-                    StatusCode = 404,
-                    Message = "Category not found."
-                }
-            };
         }
 
-        public async Task<GetCategoryRespDto> GetCategoryByIdAsync(Guid categoryId)
+        public async Task<DeleteCategoryRespDTO> DeleteCategoryAsync(Guid categoryId, CancellationToken cancellationToken)
         {
-            var category = await _unitOfWork.Categories.FindByCondition(x => x.Id.Equals(categoryId))
-                .SingleOrDefaultAsync();
-
-            var response = new GetCategoryRespDto();
-
-            if (category != null)
+            using (var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled))
             {
-                var categoryDto = _mapper.Map<GetCategoryRespDto.CategoryRespDto>(category);
-                response.Categories = new List<GetCategoryRespDto.CategoryRespDto> { categoryDto };
-            }
-            else
-            {
-                response.ErrorMessage = new ErrorMessage
+                if ((await _categoryRepo
+                    .FindByConditionAsync(cancellationToken, new CategoryGetByIdAsNoTrackingSpecification(x => x.Id == categoryId)))
+                        .IsNullOrEmpty())
                 {
-                    StatusCode = 404, 
-                    Message = "Category not found."
+                    return new DeleteCategoryRespDTO
+                    {
+                        Deleted = false,
+                        Error = new ErrorMessage
+                        {
+                            StatusCode = 400,
+                            Message = "Such category doesn't exist!"
+                        }
+                    };
+                }
+
+                _categoryRepo.RemoveById(categoryId);
+
+                if ((await _unitOfWork.SaveChangesAsyncWithResult(cancellationToken)) == 0)
+                {
+                    return new DeleteCategoryRespDTO
+                    {
+                        Deleted = false,
+                        Error = new ErrorMessage
+                        {
+                            StatusCode = 400,
+                            Message = "Error occurred while deleting category!"
+                        }
+                    };
+                }
+
+                scope.Complete();
+
+                var response = new DeleteCategoryRespDTO { Deleted = true };
+
+                return response;
+            }
+        }
+
+        public async Task<GetCategoryRespDto> GetAllCategoriesAsync(CancellationToken cancellationToken)
+        {
+            if ((await _categoryRepo.FindByConditionAsync(cancellationToken, new CategoryGetAllSpecification()))
+                    .IsNullOrEmpty())
+            {
+                return new GetCategoryRespDto
+                {
+                    ErrorMessage = new ErrorMessage
+                    {
+                        StatusCode = 404,
+                        Message = $"No categories were found!"
+                    }
                 };
             }
+
+            var allCategories = await _categoryRepo.FindByConditionAsync(cancellationToken, new CategoryGetAllSpecification());
+
+            var response = new GetCategoryRespDto
+            {
+                Categories = _mapper.Map<IEnumerable<CategoryRespDto>>(allCategories)
+            };
 
             return response;
         }
 
-        public async Task<UpdateCategoryRespDTO> UpdateCategoryAsync(UpdateCategoryReqDTO categoryDto)
+        public virtual async Task<GetCategoryRespDto> GetCategoryByIdAsync(Guid categoryId, CancellationToken cancellationToken)
         {
-            var categoryToUpdate = _mapper.Map<Category>(categoryDto);
-
-            _unitOfWork.Categories.Update(categoryToUpdate);
-
-            var updated = await _unitOfWork.SaveChangesAsyncWithResult();
-
-            if (updated > 0)
+            if ((await _categoryRepo.FindByConditionAsync(cancellationToken, new CategoryGetByIdAsNoTrackingSpecification(c => c.Id == categoryId))).IsNullOrEmpty())
             {
-                var updatedCategory = _unitOfWork.Categories.FindByCondition(x => x.Id == categoryDto.Id).SingleOrDefault();
+                return new GetCategoryRespDto
+                {
+                    ErrorMessage = new ErrorMessage
+                    {
+                        StatusCode = 404,
+                        Message = "Category not found."
+                    }
+                };
+            }
 
-                var response = _mapper.Map<UpdateCategoryRespDTO>(updatedCategory);
+            var categoryByIdDto = await _categoryRepo
+                .FindByConditionAsync(cancellationToken, new CategoryGetByIdSpecification(c => c.Id == categoryId));
+
+            var mappedCategoryDto = _mapper.Map<CategoryRespDto>(categoryByIdDto);
+
+            return new GetCategoryRespDto
+            {
+                Categories = new List<CategoryRespDto> { mappedCategoryDto }
+            };
+        }
+
+        public async Task<UpdateCategoryRespDTO> UpdateCategoryAsync(UpdateCategoryReqDTO categoryDto, CancellationToken cancellationToken)
+        {
+            using (var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled))
+            {
+                if ((await _categoryRepo
+                    .FindByConditionAsync(cancellationToken, new CategoryGetByIdAsNoTrackingSpecification(x => x.Id == categoryDto.Id)))
+                        .IsNullOrEmpty())
+                {
+                    return new UpdateCategoryRespDTO
+                    {
+                        ErrorMessage = new ErrorMessage
+                        {
+                            StatusCode = 404,
+                            Message = "Category not found."
+                        }
+                    };
+                }
+
+                var categoryToUpdate = ((await _categoryRepo
+                    .FindByConditionAsync(cancellationToken, new CategoryGetByIdSpecification(x => x.Id == categoryDto.Id))))
+                    .FirstOrDefault();
+
+                var mappedCategoryToUpdateDto = _mapper.Map(categoryDto, categoryToUpdate);
+
+                _categoryRepo.Update(mappedCategoryToUpdateDto);
+
+                if ((await _unitOfWork.SaveChangesAsyncWithResult(cancellationToken)) == 0)
+                {
+                    return new UpdateCategoryRespDTO
+                    {
+                        ErrorMessage = new ErrorMessage
+                        {
+                            StatusCode = 400,
+                            Message = "Error occurred while updating category!"
+                        }
+                    };
+                }
+
+                var response = _mapper.Map<UpdateCategoryRespDTO>(categoryToUpdate);
+
+                scope.Complete();
 
                 return response;
             }
+        }
 
-            return new UpdateCategoryRespDTO
+        public async Task<UpdateCategoryPatchRespDto> UpdateCategoryPatchAsync(Guid Id, JsonPatchDocument<Category> patchDocument, CancellationToken cancellationToken)
+        {
+            using (var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled))
             {
-                ErrorMessage = new ErrorMessage
+                if ((await _categoryRepo
+                     .FindByConditionAsync(cancellationToken, new CategoryGetByIdAsNoTrackingSpecification(x => x.Id == Id)))
+                         .IsNullOrEmpty())
                 {
-                    StatusCode = 500,
-                    Message = "Error occurred while updating category. Probably you haven't provided category ID!"
+                    return new UpdateCategoryPatchRespDto
+                    {
+                        ErrorMessage = new ErrorMessage
+                        {
+                            StatusCode = 404,
+                            Message = "Category not found."
+                        }
+                    };
                 }
-            };
+
+                var categoryToUpdate = (await _categoryRepo
+                    .FindByConditionAsync(cancellationToken, new CategoryGetByIdSpecification(x => x.Id == Id)))
+                    .FirstOrDefault();
+
+                patchDocument.ApplyTo(categoryToUpdate);
+
+                if ((await _unitOfWork.SaveChangesAsyncWithResult(cancellationToken)) == 0)
+                {
+                    return new UpdateCategoryPatchRespDto
+                    {
+                        ErrorMessage = new ErrorMessage
+                        {
+                            StatusCode = 400,
+                            Message = "Error occurred while patch updating category!"
+                        }
+                    };
+                }
+
+                var response = _mapper.Map<UpdateCategoryPatchRespDto>(categoryToUpdate);
+
+                scope.Complete();
+
+                return response;
+            }
         }
     }
 }
+

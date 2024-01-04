@@ -16,7 +16,10 @@ namespace Logic.Mapping_Profiles
             CreateMap<CreateCategoryReqDTO, Category>()
                 .ForMember(dest => dest.CategoryType, opt => opt.MapFrom(src => Enum.Parse(typeof(CategoryType), src.CategoryType)));
 
-            CreateMap<Category, GetCategoryRespDto.CategoryRespDto>()
+            CreateMap<CategoryRespDto, Category>()
+             .ForMember(dest => dest.CategoryType, opt => opt.MapFrom(src => Enum.Parse(typeof(CategoryType), src.CategoryType)));
+
+            CreateMap<Category, CategoryRespDto>()
                 .ForMember(dest => dest.CategoryType, opt => opt.MapFrom(src => src.CategoryType.ToString()));
 
             CreateMap<Category, CreateCategoryRespDTO>()
@@ -25,8 +28,14 @@ namespace Logic.Mapping_Profiles
             CreateMap<Category, UpdateCategoryRespDTO>()
                 .ForMember(dest => dest.CategoryType, opt => opt.MapFrom(src => src.CategoryType.ToString()));
 
-            CreateMap<UpdateCategoryReqDTO, Category>()
-                .ForMember(dest => dest.CategoryType, opt => opt.MapFrom(src => Enum.Parse(typeof(CategoryType), src.CategoryType)));
+            CreateMap<Category, UpdateCategoryPatchRespDto>()
+             .ForMember(dest => dest.CategoryType, opt => opt.MapFrom(src => src.CategoryType.ToString()));
+
+            CreateMap<CategoryRespDto, UpdateCategoryPatchRespDto>().ReverseMap();
+
+            CreateMap<CategoryRespDto, UpdateCategoryRespDTO>().ReverseMap();
+
+            CreateMap<UpdateCategoryReqDTO, Category>();
         }
     }
 }

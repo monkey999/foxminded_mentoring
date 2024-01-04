@@ -9,32 +9,27 @@ namespace DataAccess
     public class AppDbContext : DbContext
     {
         public DbSet<Category> Categories { get; set; }
-        public DbSet<CreditAccount> CreditAccounts { get; set; }
         public DbSet<DebitAccount> DebitAccounts { get; set; }
-        public DbSet<DebtAccount> DebtAccounts { get; set; }
-        public DbSet<InvestAccount> InvestAccounts { get; set; }
         public DbSet<Transaction> Transactions { get; set; }
         public DbSet<TransactionParticipant> TransactionParticipants { get; set; }
+        public DbSet<AccountBase> AccountBases { get; set; }
 
-        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        public AppDbContext(DbContextOptions<AppDbContext> options)
+            : base(options)
         {
-            optionsBuilder.UseSqlServer("Server=.;Database=ExpenseTrackerDb;Trusted_Connection=True;TrustServerCertificate=True;");
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.Entity<Category>().ToTable("Categories");
-            modelBuilder.Entity<CreditAccount>().ToTable("CreditAccounts");
-            modelBuilder.Entity<DebitAccount>().ToTable("DebitAccounts");
-            modelBuilder.Entity<DebtAccount>().ToTable("DebtAccounts");
-            modelBuilder.Entity<InvestAccount>().ToTable("InvestAccounts");
-
             modelBuilder.Entity<Category>().Property(c => c.CategoryType).HasConversion<string>();
-            modelBuilder.Entity<CreditAccount>().Property(c => c.CurrencyType).HasConversion<string>();
             modelBuilder.Entity<DebitAccount>().Property(c => c.CurrencyType).HasConversion<string>();
-            modelBuilder.Entity<DebtAccount>().Property(c => c.CurrencyType).HasConversion<string>();
-            modelBuilder.Entity<DebtAccount>().Property(c => c.DebtAccountType).HasConversion<string>();
-            modelBuilder.Entity<InvestAccount>().Property(c => c.CurrencyType).HasConversion<string>();
+            modelBuilder.Entity<AccountBase>().Property(c => c.CurrencyType).HasConversion<string>();
+
+            modelBuilder.Entity<TransactionParticipant>().ToTable("TransactionParticipants");
+            modelBuilder.Entity<AccountBase>().ToTable("AccountBases");
+            modelBuilder.Entity<DebitAccount>().ToTable("DebitAccounts");
+            modelBuilder.Entity<Category>().ToTable("Categories");
+            modelBuilder.Entity<Transaction>().ToTable("Transactions");
 
             modelBuilder.Entity<Category>().HasData(
                 new Category { CategoryName = "Coca plantation", CategoryType = CategoryType.Income },
@@ -44,37 +39,13 @@ namespace DataAccess
                 new Category { CategoryName = "Trading slaves", CategoryType = CategoryType.Income }
                 );
 
-            modelBuilder.Entity<CreditAccount>().HasData(
-                new CreditAccount("CreditAccount1", "weewfwef", 102, CurrencyType.USD),
-                new CreditAccount("CreditAccount2", "cwwwecwcew", 100023.2, CurrencyType.CHF),
-                new CreditAccount("CreditAccount3", "cwewecds", 123131, CurrencyType.PLZ),
-                new CreditAccount("CreditAccount4", "evevrve", 432423432, CurrencyType.GBP),
-                new CreditAccount("CreditAccount5", "cwewwfre", 321532452, CurrencyType.CAD)
-                );
-
             modelBuilder.Entity<DebitAccount>().HasData(
-                new DebitAccount("DebitAccount1", "weewfwef", 102, CurrencyType.USD),
-                new DebitAccount("DebitAccount2", "cwwwecwcew", 100023.2, CurrencyType.CHF),
-                new DebitAccount("DebitAccount3", "cwewecds", 432423, CurrencyType.PLZ),
-                new DebitAccount("DebitAccount4", "evevrve", 12321, CurrencyType.GBP),
-                new DebitAccount("DebitAccount5", "cwewwfre", 123143, CurrencyType.CAD)
+                new DebitAccount("DebitAccount1", "weewfwef", 102, CurrencyType.USD, 0, 1000),
+                new DebitAccount("DebitAccount2", "cwwwecwcew", 100023.2, CurrencyType.CHF, 500, 1000),
+                new DebitAccount("DebitAccount3", "cwewecds", 432423, CurrencyType.PLZ, 1000, 1000),
+                new DebitAccount("DebitAccount4", "evevrve", 12321, CurrencyType.GBP, 200, 1000),
+                new DebitAccount("DebitAccount5", "cwewwfre", 123143, CurrencyType.CAD, 300, 1000)
                 );
-
-            modelBuilder.Entity<DebtAccount>().HasData(
-                new DebtAccount("DebtAccount1", "weewfwef", 102, CurrencyType.USD, DebtAccountType.IDebtGiver),
-                new DebtAccount("DebtAccount2", "cwwwecwcew", 100023.2, CurrencyType.CHF, DebtAccountType.IDebtTaker),
-                new DebtAccount("DebtAccount3", "cwewecds", 432423, CurrencyType.PLZ, DebtAccountType.IDebtGiver),
-                new DebtAccount("DebtAccount4", "evevrve", 12321, CurrencyType.GBP, DebtAccountType.IDebtGiver),
-                new DebtAccount("DebtAccount5", "cwewwfre", 123143, CurrencyType.CAD, DebtAccountType.IDebtGiver)
-                );
-
-            modelBuilder.Entity<InvestAccount>().HasData(
-                new InvestAccount("InvestAccount1", "weewfwef", 102, CurrencyType.USD),
-                new InvestAccount("InvestAccount2", "cwwwecwcew", 31231, CurrencyType.CHF),
-                new InvestAccount("InvestAccount3", "cwewecds", 12312, CurrencyType.PLZ),
-                new InvestAccount("InvestAccount4", "evevrve", 242342, CurrencyType.GBP),
-                new InvestAccount("InvestAccount5", "cwewwfre", 12542342, CurrencyType.CAD)
-                 );
 
             modelBuilder.Entity<Transaction>(entity =>
             {
@@ -94,14 +65,6 @@ namespace DataAccess
                     .HasForeignKey(t => t.ReceiverId)
                     .OnDelete(DeleteBehavior.Restrict);
             });
-
-            modelBuilder.Entity<Transaction>().HasData(
-                new Transaction { Amount = 234234, SenderId = Guid.NewGuid(), ReceiverId = Guid.NewGuid(), TransactionType = TransactionType.Income },
-                new Transaction { Amount = 2342423, SenderId = Guid.NewGuid(), ReceiverId = Guid.NewGuid(), TransactionType = TransactionType.IGiveLoan },
-                new Transaction { Amount = 54343, SenderId = Guid.NewGuid(), ReceiverId = Guid.NewGuid(), TransactionType = TransactionType.RepaysMeLoan },
-                new Transaction { Amount = 2342323, SenderId = Guid.NewGuid(), ReceiverId = Guid.NewGuid(), TransactionType = TransactionType.Expense },
-                new Transaction { Amount = 12545, SenderId = Guid.NewGuid(), ReceiverId = Guid.NewGuid(), TransactionType = TransactionType.Income }
-            );
         }
     }
 }

@@ -1,11 +1,15 @@
-﻿using Logic.DTO_Contracts.Requests.Create;
+﻿using Domain.Models.Accounts;
+using Logic.DTO_Contracts.Requests.Create;
 using Logic.DTO_Contracts.Requests.Update;
 using Logic.ServiceInterfaces;
+using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
+using Task12_ExpenseTracker.ExceptionFilters;
 
 namespace Task12_ExpenseTracker.Controllers.V1
 {
     [ApiController]
+    [DebitAccountControllerExceptionFilterAttribute]
     public class DebitAccountController : ControllerBase
     {
         private readonly IDebitAccountService _debitAccountService;
@@ -16,15 +20,20 @@ namespace Task12_ExpenseTracker.Controllers.V1
         }
 
         [HttpPost(ApiRoutes.DebitAccounts.CreateDebitAccount)]
-        public async Task<IActionResult> CreateDebitAccount([FromBody] CreateDebitAccountReqDTO request)
+        public async Task<IActionResult> CreateDebitAccount([FromBody] CreateDebitAccountReqDTO request, CancellationToken cancellationToken)
         {
-            var response = await _debitAccountService.CreateDebitAccountWithResultAsync(request);
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
 
-            if (response.ErrorMessage == null)
+            var response = await _debitAccountService.CreateDebitAccountAsync(request, cancellationToken);
+
+            if (response.ErrorMessage is null)
             {
                 var baseUrl = $"{HttpContext.Request.Scheme}://{HttpContext.Request.Host.ToUriComponent()}";
 
-                var locationUri = baseUrl + "/" + ApiRoutes.DebitAccounts.GetDebitAccountByID.Replace("{debitAccountId}", response.Id.ToString());
+                var locationUri = baseUrl + "/" + ApiRoutes.DebitAccounts.GetDebitAccountByID.Replace("{Id}", response.Id.ToString());
 
                 return Created(locationUri, response);
             }
@@ -33,43 +42,42 @@ namespace Task12_ExpenseTracker.Controllers.V1
         }
 
         [HttpGet(ApiRoutes.DebitAccounts.GetAllDebitAccounts)]
-        public async Task<IActionResult> GetAllDebitAccounts()
+        public async Task<IActionResult> GetAllDebitAccounts(CancellationToken cancellationToken)
         {
-            var debitAccounts = await _debitAccountService.GetAllDebitAccountsAsync();
+            var debitAccounts = await _debitAccountService.GetAllDebitAccountsAsync(cancellationToken);
 
-            if (debitAccounts == null)
+            if (debitAccounts.ErrorMessage is not null)
             {
-                return NotFound();
+                return StatusCode(debitAccounts.ErrorMessage.StatusCode, debitAccounts.ErrorMessage);
             }
 
             return Ok(debitAccounts);
         }
 
         [HttpGet(ApiRoutes.DebitAccounts.GetDebitAccountByID)]
-        public async Task<IActionResult> GetDebitAccountById([FromRoute] Guid Id)
+        public async Task<IActionResult> GetDebitAccountById([FromRoute] Guid Id, CancellationToken cancellationToken)
         {
-            var debitAccountResponse = await _debitAccountService.GetDebitAccountByIdAsync(Id);
+            var debitAccountResponse = await _debitAccountService.GetDebitAccountByIdAsync(Id, cancellationToken);
 
-            if (debitAccountResponse != null && debitAccountResponse.DebitAccountsRespDto.Any())
+            if (debitAccountResponse.ErrorMessage is null)
             {
                 return Ok(debitAccountResponse);
             }
-            else if (debitAccountResponse.ErrorMessage != null)
-            {
-                return StatusCode(debitAccountResponse.ErrorMessage.StatusCode, debitAccountResponse.ErrorMessage);
-            }
 
-            return NotFound();
+            return StatusCode(debitAccountResponse.ErrorMessage.StatusCode, debitAccountResponse.ErrorMessage);
         }
 
         [HttpPut(ApiRoutes.DebitAccounts.UpdateDebitAccount)]
-        public async Task<IActionResult> UpdateDebitAccount([FromBody] UpdateDebitAccountReqDTO request)
+        public async Task<IActionResult> UpdateDebitAccount([FromBody] UpdateDebitAccountReqDTO request, CancellationToken cancellationToken)
         {
-            //TODO: add modelstate check: user must provide id or its not update 
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
 
-            var updated = await _debitAccountService.UpdateDebitAccountAsync(request);
+            var updated = await _debitAccountService.UpdateDebitAccountAsync(request, cancellationToken);
 
-            if (updated.ErrorMessage == null)
+            if (updated.ErrorMessage is null)
             {
                 return Ok(updated);
             }
@@ -77,17 +85,30 @@ namespace Task12_ExpenseTracker.Controllers.V1
             return StatusCode(updated.ErrorMessage.StatusCode, updated.ErrorMessage);
         }
 
-        [HttpDelete(ApiRoutes.DebitAccounts.DeleteDebitAccount)]
-        public async Task<IActionResult> DeleteDebitAccount([FromRoute] Guid Id)
+        [HttpPatch(ApiRoutes.DebitAccounts.UpdatePatchDebitAccount)]
+        public async Task<IActionResult> UpdatePatchDebitAccount([FromRoute] Guid Id, [FromBody] JsonPatchDocument<DebitAccount> patchDocument, CancellationToken cancellationToken)
         {
-            var deleted = await _debitAccountService.DeleteDebitAccountAsync(Id);
+            var updatedDebitAccount = await _debitAccountService.UpdateDebitAccountPatchAsync(Id, patchDocument, cancellationToken);
 
-            if (deleted)
+            if (updatedDebitAccount is null)
+            {
+                return NotFound();
+            }
+
+            return Ok(updatedDebitAccount);
+        }
+
+        [HttpDelete(ApiRoutes.DebitAccounts.DeleteDebitAccount)]
+        public async Task<IActionResult> DeleteDebitAccount([FromRoute] Guid Id, CancellationToken cancellationToken)
+        {
+            var deleted = await _debitAccountService.DeleteDebitAccountAsync(Id, cancellationToken);
+
+            if (deleted.Deleted)
             {
                 return NoContent();
             }
 
-            return NotFound();
+            return StatusCode(deleted.Error.StatusCode, deleted.Error);
         }
     }
 }

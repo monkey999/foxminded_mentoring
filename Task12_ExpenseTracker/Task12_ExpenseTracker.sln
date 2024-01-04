@@ -5,11 +5,16 @@ VisualStudioVersion = 17.6.33723.286
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Task12_ExpenseTracker", "Task12_ExpenseTracker\Task12_ExpenseTracker.csproj", "{D07D0E43-DF5F-48FD-8C1A-A62D3FF62F3C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Domain", "Domain\Domain.csproj", "{7CE6F2DE-9ED9-4F0D-B597-B13DB648FC02}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Domain", "Domain\Domain.csproj", "{7CE6F2DE-9ED9-4F0D-B597-B13DB648FC02}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataAccess", "DataAccess\DataAccess.csproj", "{A0A34C1B-DE59-48F6-96D8-FCE9151A93FC}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DataAccess", "DataAccess\DataAccess.csproj", "{A0A34C1B-DE59-48F6-96D8-FCE9151A93FC}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Logic", "Logic\Logic.csproj", "{FDB05842-8D27-44F9-A928-F94B6D695321}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Logic", "Logic\Logic.csproj", "{FDB05842-8D27-44F9-A928-F94B6D695321}"
+	ProjectSection(ProjectDependencies) = postProject
+		{A0A34C1B-DE59-48F6-96D8-FCE9151A93FC} = {A0A34C1B-DE59-48F6-96D8-FCE9151A93FC}
+	EndProjectSection
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ExpenseTracker.Tests", "ExpenseTracker.Tests\ExpenseTracker.Tests.csproj", "{DCEEF1D8-153A-43D1-A870-86EADC39AA47}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -33,6 +38,10 @@ Global
 		{FDB05842-8D27-44F9-A928-F94B6D695321}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FDB05842-8D27-44F9-A928-F94B6D695321}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FDB05842-8D27-44F9-A928-F94B6D695321}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DCEEF1D8-153A-43D1-A870-86EADC39AA47}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DCEEF1D8-153A-43D1-A870-86EADC39AA47}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DCEEF1D8-153A-43D1-A870-86EADC39AA47}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DCEEF1D8-153A-43D1-A870-86EADC39AA47}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

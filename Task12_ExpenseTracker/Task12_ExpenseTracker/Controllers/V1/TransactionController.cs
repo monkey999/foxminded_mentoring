@@ -1,11 +1,15 @@
-﻿using Logic.DTO_Contracts.Requests.Create;
+﻿using Domain.Models;
+using Logic.DTO_Contracts.Requests.Create;
 using Logic.DTO_Contracts.Requests.Update;
 using Logic.ServiceInterfaces;
+using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
+using Task12_ExpenseTracker.ExceptionFilters;
 
 namespace Task12_ExpenseTracker.Controllers.V1
 {
     [ApiController]
+    [TransactionControllerExceptionFilterAttribute]
     public class TransactionController : ControllerBase
     {
         private readonly ITransactionService _transactionService;
@@ -16,15 +20,20 @@ namespace Task12_ExpenseTracker.Controllers.V1
         }
 
         [HttpPost(ApiRoutes.Transactions.CreateTransaction)]
-        public async Task<IActionResult> CreateTransaction([FromBody] CreateTransactionReqDTO request)
+        public async Task<IActionResult> CreateTransaction([FromBody] CreateTransactionReqDTO request, CancellationToken cancellationToken)
         {
-            var response = await _transactionService.CreateTransactionWithResultAsync(request);
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
 
-            if (response.ErrorMessage == null)
+            var response = await _transactionService.CreateTransactionAsync(request, cancellationToken);
+
+            if (response.ErrorMessage is null)
             {
                 var baseUrl = $"{HttpContext.Request.Scheme}://{HttpContext.Request.Host.ToUriComponent()}";
 
-                var locationUri = baseUrl + "/" + ApiRoutes.Transactions.GetTransactionByID.Replace("{transactionId}", response.Id.ToString());
+                var locationUri = baseUrl + "/" + ApiRoutes.Transactions.GetTransactionByID.Replace("{Id}", response.TransactionDto.Id.ToString());
 
                 return Created(locationUri, response);
             }
@@ -33,43 +42,42 @@ namespace Task12_ExpenseTracker.Controllers.V1
         }
 
         [HttpGet(ApiRoutes.Transactions.GetAllTransactions)]
-        public async Task<IActionResult> GetAllTransactions()
+        public async Task<IActionResult> GetAllTransactions(CancellationToken cancellationToken)
         {
-            var transactions = await _transactionService.GetAllTransactionsAsync();
+            var transactions = await _transactionService.GetAllTransactionsAsync(cancellationToken);
 
-            if (transactions == null)
+            if (transactions.ErrorMessage is not null)
             {
-                return NotFound();
+                return StatusCode(transactions.ErrorMessage.StatusCode, transactions.ErrorMessage);
             }
 
             return Ok(transactions);
         }
 
         [HttpGet(ApiRoutes.Transactions.GetTransactionByID)]
-        public async Task<IActionResult> GetTransactionById([FromRoute] Guid Id)
+        public async Task<IActionResult> GetTransactionById([FromRoute] Guid Id, CancellationToken cancellationToken)
         {
-            var transactionResponse = await _transactionService.GetTransactionByIdAsync(Id);
+            var transactionResponse = await _transactionService.GetTransactionByIdAsync(Id, cancellationToken);
 
-            if (transactionResponse != null && transactionResponse.TransactionsRespDto.Any())
+            if (transactionResponse.ErrorMessage is null)
             {
                 return Ok(transactionResponse);
             }
-            else if (transactionResponse.ErrorMessage != null)
-            {
-                return StatusCode(transactionResponse.ErrorMessage.StatusCode, transactionResponse.ErrorMessage);
-            }
 
-            return NotFound();
+            return StatusCode(transactionResponse.ErrorMessage.StatusCode, transactionResponse.ErrorMessage);
         }
 
         [HttpPut(ApiRoutes.Transactions.UpdateTransaction)]
-        public async Task<IActionResult> UpdateTransaction([FromBody] UpdateTransactionReqDTO request)
+        public async Task<IActionResult> UpdateTransaction([FromBody] UpdateTransactionReqDTO request, CancellationToken cancellationToken)
         {
-            //TODO: add modelstate check: user must provide id or its not update 
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
 
-            var updated = await _transactionService.UpdateTransactionAsync(request);
+            var updated = await _transactionService.UpdateTransactionAsync(request, cancellationToken);
 
-            if (updated.ErrorMessage == null)
+            if (updated.ErrorMessage is null)
             {
                 return Ok(updated);
             }
@@ -77,17 +85,30 @@ namespace Task12_ExpenseTracker.Controllers.V1
             return StatusCode(updated.ErrorMessage.StatusCode, updated.ErrorMessage);
         }
 
-        [HttpDelete(ApiRoutes.Transactions.DeleteTransaction)]
-        public async Task<IActionResult> DeleteTransaction([FromRoute] Guid Id)
+        [HttpPatch(ApiRoutes.Transactions.UpdatePatchTransaction)]
+        public async Task<IActionResult> UpdatePatchTransaction([FromRoute] Guid Id, [FromBody] JsonPatchDocument<Transaction> patchDocument, CancellationToken cancellationToken)
         {
-            var deleted = await _transactionService.DeleteTransactionAsync(Id);
+            var updatedTransaction = await _transactionService.UpdateTransactionPatchAsync(Id, patchDocument, cancellationToken);
 
-            if (deleted)
+            if (updatedTransaction is null)
+            {
+                return NotFound();
+            }
+
+            return Ok(updatedTransaction);
+        }
+
+        [HttpDelete(ApiRoutes.Transactions.DeleteTransaction)]
+        public async Task<IActionResult> DeleteTransaction([FromRoute] Guid Id, CancellationToken cancellationToken)
+        {
+            var deleted = await _transactionService.DeleteTransactionAsync(Id, cancellationToken);
+
+            if (deleted.Deleted)
             {
                 return NoContent();
             }
 
-            return NotFound();
+            return StatusCode(deleted.Error.StatusCode, deleted.Error);
         }
     }
 }

@@ -1,11 +1,15 @@
-﻿using Logic.DTO_Contracts.Requests.Create;
+﻿using Domain.Models;
+using Logic.DTO_Contracts.Requests.Create;
 using Logic.DTO_Contracts.Requests.Update;
 using Logic.ServiceInterfaces;
+using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
+using Task12_ExpenseTracker.ExceptionFilters;
 
 namespace Task12_ExpenseTracker.Controllers.V1
 {
     [ApiController]
+    [CategoryControllerExceptionFilterAttribute]
     public class CategoryController : ControllerBase
     {
         private readonly ICategoryService _categoryService;
@@ -16,15 +20,20 @@ namespace Task12_ExpenseTracker.Controllers.V1
         }
 
         [HttpPost(ApiRoutes.Categories.CreateCategory)]
-        public async Task<IActionResult> CreateCategory([FromBody] CreateCategoryReqDTO request)
+        public async Task<IActionResult> CreateCategory([FromBody] CreateCategoryReqDTO request, CancellationToken cancellationToken)
         {
-            var response = await _categoryService.CreateCategoryWithResultAsync(request);
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
 
-            if (response.ErrorMessage == null)
+            var response = await _categoryService.CreateCategoryAsync(request, cancellationToken);
+
+            if (response.ErrorMessage is null)
             {
                 var baseUrl = $"{HttpContext.Request.Scheme}://{HttpContext.Request.Host.ToUriComponent()}";
 
-                var locationUri = baseUrl + "/" + ApiRoutes.Categories.GetCategoryByID.Replace("{categoryId}", response.Id.ToString());
+                var locationUri = baseUrl + "/" + ApiRoutes.Categories.GetCategoryByID.Replace("{Id}", response.Id.ToString());
 
                 return Created(locationUri, response);
             }
@@ -33,43 +42,42 @@ namespace Task12_ExpenseTracker.Controllers.V1
         }
 
         [HttpGet(ApiRoutes.Categories.GetAllCategories)]
-        public async Task<IActionResult> GetAllCategories()
+        public async Task<IActionResult> GetAllCategories(CancellationToken cancellationToken)
         {
-            var categories = await _categoryService.GetAllCategoriesAsync();
+            var categories = await _categoryService.GetAllCategoriesAsync(cancellationToken);
 
-            if (categories == null)
+            if (categories.ErrorMessage is not null)
             {
-                return NotFound();
+                return StatusCode(categories.ErrorMessage.StatusCode, categories.ErrorMessage);
             }
 
             return Ok(categories);
         }
 
         [HttpGet(ApiRoutes.Categories.GetCategoryByID)]
-        public async Task<IActionResult> GetCategoryById([FromRoute] Guid Id)
+        public async Task<IActionResult> GetCategoryById([FromRoute] Guid Id, CancellationToken cancellationToken)
         {
-            var categoryResponse = await _categoryService.GetCategoryByIdAsync(Id);
+            var categoryResponse = await _categoryService.GetCategoryByIdAsync(Id, cancellationToken);
 
-            if (categoryResponse != null && categoryResponse.Categories.Any())
+            if (categoryResponse.ErrorMessage is null)
             {
                 return Ok(categoryResponse);
             }
-            else if (categoryResponse.ErrorMessage != null)
-            {
-                return StatusCode(categoryResponse.ErrorMessage.StatusCode, categoryResponse.ErrorMessage);
-            }
 
-            return NotFound();
+            return StatusCode(categoryResponse.ErrorMessage.StatusCode, categoryResponse.ErrorMessage);
         }
 
         [HttpPut(ApiRoutes.Categories.UpdateCategory)]
-        public async Task<IActionResult> UpdateCategory([FromBody] UpdateCategoryReqDTO request)
+        public async Task<IActionResult> UpdateCategory([FromBody] UpdateCategoryReqDTO request, CancellationToken cancellationToken)
         {
-            //TODO: add modelstate check: user must provide id or its not update 
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
 
-            var updated = await _categoryService.UpdateCategoryAsync(request);
+            var updated = await _categoryService.UpdateCategoryAsync(request, cancellationToken);
 
-            if (updated.ErrorMessage == null)
+            if (updated.ErrorMessage is null)
             {
                 return Ok(updated);
             }
@@ -77,17 +85,30 @@ namespace Task12_ExpenseTracker.Controllers.V1
             return StatusCode(updated.ErrorMessage.StatusCode, updated.ErrorMessage);
         }
 
-        [HttpDelete(ApiRoutes.Categories.DeleteCategory)]
-        public async Task<IActionResult> DeleteCategory([FromRoute] Guid Id)
+        [HttpPatch(ApiRoutes.Categories.UpdatePatchCategory)]
+        public async Task<IActionResult> UpdatePatchCategory([FromRoute] Guid Id, [FromBody] JsonPatchDocument<Category> patchDocument, CancellationToken cancellationToken)
         {
-            var deleted = await _categoryService.DeleteCategoryAsync(Id);
+            var updatedCategory = await _categoryService.UpdateCategoryPatchAsync(Id, patchDocument, cancellationToken);
 
-            if (deleted)
+            if (updatedCategory.ErrorMessage is not null)
+            {
+                return NotFound();
+            }
+
+            return Ok(updatedCategory);
+        }
+
+        [HttpDelete(ApiRoutes.Categories.DeleteCategory)]
+        public async Task<IActionResult> DeleteCategory([FromRoute] Guid Id, CancellationToken cancellationToken)
+        {
+            var deleted = await _categoryService.DeleteCategoryAsync(Id, cancellationToken);
+
+            if (deleted.Deleted)
             {
                 return NoContent();
             }
 
-            return NotFound();
+            return StatusCode(deleted.Error.StatusCode, deleted.Error);
         }
     }
 }

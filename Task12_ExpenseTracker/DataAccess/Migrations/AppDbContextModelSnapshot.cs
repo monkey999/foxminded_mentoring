@@ -17,7 +17,7 @@ namespace DataAccess.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "7.0.10")
+                .HasAnnotation("ProductVersion", "7.0.11")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -30,7 +30,7 @@ namespace DataAccess.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("TransactionParticipants");
+                    b.ToTable("TransactionParticipants", (string)null);
 
                     b.UseTptMappingStrategy();
                 });
@@ -49,7 +49,7 @@ namespace DataAccess.Migrations
                     b.Property<DateTime>("Date")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2")
-                        .HasDefaultValue(new DateTime(2023, 8, 16, 19, 58, 12, 454, DateTimeKind.Local).AddTicks(1560));
+                        .HasDefaultValue(new DateTime(2023, 10, 12, 4, 32, 31, 784, DateTimeKind.Local).AddTicks(9261));
 
                     b.Property<Guid>("ReceiverId")
                         .HasColumnType("uniqueidentifier");
@@ -67,57 +67,10 @@ namespace DataAccess.Migrations
 
                     b.HasIndex("SenderId");
 
-                    b.ToTable("Transactions");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("4b62006c-a7c9-4fc1-94c6-9a61aaa3ad88"),
-                            Amount = 234234.0,
-                            Date = new DateTime(2023, 8, 16, 19, 58, 12, 460, DateTimeKind.Local).AddTicks(3831),
-                            ReceiverId = new Guid("acad0500-3135-4be9-b3ce-00136ea28504"),
-                            SenderId = new Guid("9223c590-2add-425a-8b75-d5ab6a9f9893"),
-                            TransactionType = "Income"
-                        },
-                        new
-                        {
-                            Id = new Guid("18634549-c6b9-4c47-98b9-0862f8ae16bf"),
-                            Amount = 2342423.0,
-                            Date = new DateTime(2023, 8, 16, 19, 58, 12, 460, DateTimeKind.Local).AddTicks(3922),
-                            ReceiverId = new Guid("41c236e0-107f-4dd5-b89f-cc953c6d2c4e"),
-                            SenderId = new Guid("a949ac65-2d34-4e9c-8eb9-9913f282e76c"),
-                            TransactionType = "IGiveLoan"
-                        },
-                        new
-                        {
-                            Id = new Guid("b3d19982-c77d-4afd-a129-e5373e9f5b21"),
-                            Amount = 54343.0,
-                            Date = new DateTime(2023, 8, 16, 19, 58, 12, 460, DateTimeKind.Local).AddTicks(3929),
-                            ReceiverId = new Guid("a1e801f0-40e0-4c3f-bbde-00a4aa264772"),
-                            SenderId = new Guid("c1ce9b8f-0de1-4823-81d7-7a63185da4dd"),
-                            TransactionType = "RepaysMeLoan"
-                        },
-                        new
-                        {
-                            Id = new Guid("7281c33f-41fa-4e2f-adc2-8e9ebfb061f5"),
-                            Amount = 2342323.0,
-                            Date = new DateTime(2023, 8, 16, 19, 58, 12, 460, DateTimeKind.Local).AddTicks(3991),
-                            ReceiverId = new Guid("c8a648f7-0f77-48c0-800f-9716d60bde02"),
-                            SenderId = new Guid("6ad7ebcc-69a5-4132-aec5-a80389062508"),
-                            TransactionType = "Expense"
-                        },
-                        new
-                        {
-                            Id = new Guid("bd48bff0-3f5e-473c-ab25-b21ae0b6546c"),
-                            Amount = 12545.0,
-                            Date = new DateTime(2023, 8, 16, 19, 58, 12, 460, DateTimeKind.Local).AddTicks(3997),
-                            ReceiverId = new Guid("725638a2-4b0d-4dfd-b810-143c9f6a3c1c"),
-                            SenderId = new Guid("cb45c2e3-3d19-475f-a7a7-bedaaaff1a6d"),
-                            TransactionType = "Income"
-                        });
+                    b.ToTable("Transactions", (string)null);
                 });
 
-            modelBuilder.Entity("Domain.Models.Accounts.CreditAccount", b =>
+            modelBuilder.Entity("Domain.Models.BaseEntities.AccountBase", b =>
                 {
                     b.HasBaseType("Domain.Models.BaseEntities.TransactionParticipant");
 
@@ -136,250 +89,7 @@ namespace DataAccess.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.ToTable("CreditAccounts", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("2c50561c-7a7a-4cd8-85cd-34e824ba45a5"),
-                            Balance = 102.0,
-                            CurrencyType = "USD",
-                            Description = "weewfwef",
-                            Name = "CreditAccount1"
-                        },
-                        new
-                        {
-                            Id = new Guid("20bf392e-34f3-4830-9585-0ac8aa4f10ef"),
-                            Balance = 100023.2,
-                            CurrencyType = "CHF",
-                            Description = "cwwwecwcew",
-                            Name = "CreditAccount2"
-                        },
-                        new
-                        {
-                            Id = new Guid("bf0acc84-73c6-4d36-9121-54ecc7fe3190"),
-                            Balance = 123131.0,
-                            CurrencyType = "PLZ",
-                            Description = "cwewecds",
-                            Name = "CreditAccount3"
-                        },
-                        new
-                        {
-                            Id = new Guid("29137c6f-d907-4b9b-83b1-723d6d6cba6c"),
-                            Balance = 432423432.0,
-                            CurrencyType = "GBP",
-                            Description = "evevrve",
-                            Name = "CreditAccount4"
-                        },
-                        new
-                        {
-                            Id = new Guid("684b1c00-3637-418f-bdae-fcf68d01be9c"),
-                            Balance = 321532452.0,
-                            CurrencyType = "CAD",
-                            Description = "cwewwfre",
-                            Name = "CreditAccount5"
-                        });
-                });
-
-            modelBuilder.Entity("Domain.Models.Accounts.DebitAccount", b =>
-                {
-                    b.HasBaseType("Domain.Models.BaseEntities.TransactionParticipant");
-
-                    b.Property<double>("Balance")
-                        .HasColumnType("float");
-
-                    b.Property<string>("CurrencyType")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.ToTable("DebitAccounts", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("efecfbca-3e80-4b5a-920b-ae2d91a3578b"),
-                            Balance = 102.0,
-                            CurrencyType = "USD",
-                            Description = "weewfwef",
-                            Name = "DebitAccount1"
-                        },
-                        new
-                        {
-                            Id = new Guid("20c8d451-72f4-4718-9517-563bc41b65ea"),
-                            Balance = 100023.2,
-                            CurrencyType = "CHF",
-                            Description = "cwwwecwcew",
-                            Name = "DebitAccount2"
-                        },
-                        new
-                        {
-                            Id = new Guid("7117684e-890e-4806-96df-d335046ae0d3"),
-                            Balance = 432423.0,
-                            CurrencyType = "PLZ",
-                            Description = "cwewecds",
-                            Name = "DebitAccount3"
-                        },
-                        new
-                        {
-                            Id = new Guid("a1d97e61-3873-4ae7-86e7-de301c002e48"),
-                            Balance = 12321.0,
-                            CurrencyType = "GBP",
-                            Description = "evevrve",
-                            Name = "DebitAccount4"
-                        },
-                        new
-                        {
-                            Id = new Guid("596b724e-84cc-4498-806a-655e87f1f838"),
-                            Balance = 123143.0,
-                            CurrencyType = "CAD",
-                            Description = "cwewwfre",
-                            Name = "DebitAccount5"
-                        });
-                });
-
-            modelBuilder.Entity("Domain.Models.Accounts.DebtAccount", b =>
-                {
-                    b.HasBaseType("Domain.Models.BaseEntities.TransactionParticipant");
-
-                    b.Property<double>("Balance")
-                        .HasColumnType("float");
-
-                    b.Property<string>("CurrencyType")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("DebtAccountType")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.ToTable("DebtAccounts", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("f450166d-92ed-4d17-8906-226480d7abb8"),
-                            Balance = 102.0,
-                            CurrencyType = "USD",
-                            DebtAccountType = "IDebtGiver",
-                            Description = "weewfwef",
-                            Name = "DebtAccount1"
-                        },
-                        new
-                        {
-                            Id = new Guid("ae2cdd68-9886-4aaf-8c58-18d6a92c8575"),
-                            Balance = 100023.2,
-                            CurrencyType = "CHF",
-                            DebtAccountType = "IDebtTaker",
-                            Description = "cwwwecwcew",
-                            Name = "DebtAccount2"
-                        },
-                        new
-                        {
-                            Id = new Guid("56a2d3c8-1698-41bf-8638-17c26fac6132"),
-                            Balance = 432423.0,
-                            CurrencyType = "PLZ",
-                            DebtAccountType = "IDebtGiver",
-                            Description = "cwewecds",
-                            Name = "DebtAccount3"
-                        },
-                        new
-                        {
-                            Id = new Guid("93819667-c3cc-4b5e-84fd-a07713b755c3"),
-                            Balance = 12321.0,
-                            CurrencyType = "GBP",
-                            DebtAccountType = "IDebtGiver",
-                            Description = "evevrve",
-                            Name = "DebtAccount4"
-                        },
-                        new
-                        {
-                            Id = new Guid("cefed0d7-72fb-4ca5-8a3c-08ec3eda1099"),
-                            Balance = 123143.0,
-                            CurrencyType = "CAD",
-                            DebtAccountType = "IDebtGiver",
-                            Description = "cwewwfre",
-                            Name = "DebtAccount5"
-                        });
-                });
-
-            modelBuilder.Entity("Domain.Models.Accounts.InvestAccount", b =>
-                {
-                    b.HasBaseType("Domain.Models.BaseEntities.TransactionParticipant");
-
-                    b.Property<double>("Balance")
-                        .HasColumnType("float");
-
-                    b.Property<string>("CurrencyType")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.ToTable("InvestAccounts", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("43688a64-8620-4c81-ab12-4418d35ddb87"),
-                            Balance = 102.0,
-                            CurrencyType = "USD",
-                            Description = "weewfwef",
-                            Name = "InvestAccount1"
-                        },
-                        new
-                        {
-                            Id = new Guid("69ef6585-ccb0-4afc-8284-257f12b94729"),
-                            Balance = 31231.0,
-                            CurrencyType = "CHF",
-                            Description = "cwwwecwcew",
-                            Name = "InvestAccount2"
-                        },
-                        new
-                        {
-                            Id = new Guid("5d233358-bf5c-492f-b8c7-06b6f1111125"),
-                            Balance = 12312.0,
-                            CurrencyType = "PLZ",
-                            Description = "cwewecds",
-                            Name = "InvestAccount3"
-                        },
-                        new
-                        {
-                            Id = new Guid("d313e7c2-5f3b-4a28-be53-b1f3d7283051"),
-                            Balance = 242342.0,
-                            CurrencyType = "GBP",
-                            Description = "evevrve",
-                            Name = "InvestAccount4"
-                        },
-                        new
-                        {
-                            Id = new Guid("84769db7-61f7-4287-8f56-b176ac99c339"),
-                            Balance = 12542342.0,
-                            CurrencyType = "CAD",
-                            Description = "cwewwfre",
-                            Name = "InvestAccount5"
-                        });
+                    b.ToTable("AccountBases", (string)null);
                 });
 
             modelBuilder.Entity("Domain.Models.Category", b =>
@@ -399,33 +109,98 @@ namespace DataAccess.Migrations
                     b.HasData(
                         new
                         {
-                            Id = new Guid("f39df7f9-19d0-4c69-a44e-8bd2dddd0c9d"),
-                            CategoryName = "Stocks",
+                            Id = new Guid("88f63fcb-78eb-4b3d-986e-80b4d4e42992"),
+                            CategoryName = "Coca plantation",
                             CategoryType = "Income"
                         },
                         new
                         {
-                            Id = new Guid("9ccd1bc6-e225-481b-8508-521cf8d50446"),
-                            CategoryName = "Food",
+                            Id = new Guid("d9de8074-b3a5-444a-8aef-8893ea9985ef"),
+                            CategoryName = "Soderzhanka",
                             CategoryType = "Expense"
                         },
                         new
                         {
-                            Id = new Guid("e91367db-2be5-4566-870a-3a5c699bacc4"),
-                            CategoryName = "Salary",
+                            Id = new Guid("df333852-f567-4925-88e9-eab0c4b90abf"),
+                            CategoryName = "Weapons",
                             CategoryType = "Income"
                         },
                         new
                         {
-                            Id = new Guid("4879229a-411b-446b-9c6e-62d9923c1ec9"),
-                            CategoryName = "Bank loan",
+                            Id = new Guid("f00571a8-0a6f-4d8b-a199-82880a717c93"),
+                            CategoryName = "Cocaine",
                             CategoryType = "Expense"
                         },
                         new
                         {
-                            Id = new Guid("86c0d76d-69a7-4ac5-b9a6-b78f6455db63"),
-                            CategoryName = "Crypto",
+                            Id = new Guid("e3c1647d-e2fd-4734-abd7-7187e4ea5b05"),
+                            CategoryName = "Trading slaves",
                             CategoryType = "Income"
+                        });
+                });
+
+            modelBuilder.Entity("Domain.Models.Accounts.DebitAccount", b =>
+                {
+                    b.HasBaseType("Domain.Models.BaseEntities.AccountBase");
+
+                    b.Property<double>("CurrentCreditLimit")
+                        .HasColumnType("float");
+
+                    b.Property<double>("StartCreditLimit")
+                        .HasColumnType("float");
+
+                    b.ToTable("DebitAccounts", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("9d6b9c7d-27d2-4a9d-9b5f-2b108b50f9b4"),
+                            Balance = 102.0,
+                            CurrencyType = "USD",
+                            Description = "weewfwef",
+                            Name = "DebitAccount1",
+                            CurrentCreditLimit = 0.0,
+                            StartCreditLimit = 1000.0
+                        },
+                        new
+                        {
+                            Id = new Guid("2335c691-79e6-4bf3-8695-db9bb56642bc"),
+                            Balance = 100023.2,
+                            CurrencyType = "CHF",
+                            Description = "cwwwecwcew",
+                            Name = "DebitAccount2",
+                            CurrentCreditLimit = 500.0,
+                            StartCreditLimit = 1000.0
+                        },
+                        new
+                        {
+                            Id = new Guid("e00a1a79-0d02-4d37-9fa5-f54d21521e56"),
+                            Balance = 432423.0,
+                            CurrencyType = "PLZ",
+                            Description = "cwewecds",
+                            Name = "DebitAccount3",
+                            CurrentCreditLimit = 1000.0,
+                            StartCreditLimit = 1000.0
+                        },
+                        new
+                        {
+                            Id = new Guid("920caa25-e0a9-4081-9462-9a3a9e1e1a7f"),
+                            Balance = 12321.0,
+                            CurrencyType = "GBP",
+                            Description = "evevrve",
+                            Name = "DebitAccount4",
+                            CurrentCreditLimit = 200.0,
+                            StartCreditLimit = 1000.0
+                        },
+                        new
+                        {
+                            Id = new Guid("04ce37fb-51b5-4af2-9093-ca925cd45ac3"),
+                            Balance = 123143.0,
+                            CurrencyType = "CAD",
+                            Description = "cwewwfre",
+                            Name = "DebitAccount5",
+                            CurrentCreditLimit = 300.0,
+                            StartCreditLimit = 1000.0
                         });
                 });
 
@@ -448,38 +223,11 @@ namespace DataAccess.Migrations
                     b.Navigation("To");
                 });
 
-            modelBuilder.Entity("Domain.Models.Accounts.CreditAccount", b =>
+            modelBuilder.Entity("Domain.Models.BaseEntities.AccountBase", b =>
                 {
                     b.HasOne("Domain.Models.BaseEntities.TransactionParticipant", null)
                         .WithOne()
-                        .HasForeignKey("Domain.Models.Accounts.CreditAccount", "Id")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Domain.Models.Accounts.DebitAccount", b =>
-                {
-                    b.HasOne("Domain.Models.BaseEntities.TransactionParticipant", null)
-                        .WithOne()
-                        .HasForeignKey("Domain.Models.Accounts.DebitAccount", "Id")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Domain.Models.Accounts.DebtAccount", b =>
-                {
-                    b.HasOne("Domain.Models.BaseEntities.TransactionParticipant", null)
-                        .WithOne()
-                        .HasForeignKey("Domain.Models.Accounts.DebtAccount", "Id")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Domain.Models.Accounts.InvestAccount", b =>
-                {
-                    b.HasOne("Domain.Models.BaseEntities.TransactionParticipant", null)
-                        .WithOne()
-                        .HasForeignKey("Domain.Models.Accounts.InvestAccount", "Id")
+                        .HasForeignKey("Domain.Models.BaseEntities.AccountBase", "Id")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
@@ -489,6 +237,15 @@ namespace DataAccess.Migrations
                     b.HasOne("Domain.Models.BaseEntities.TransactionParticipant", null)
                         .WithOne()
                         .HasForeignKey("Domain.Models.Category", "Id")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Domain.Models.Accounts.DebitAccount", b =>
+                {
+                    b.HasOne("Domain.Models.BaseEntities.AccountBase", null)
+                        .WithOne()
+                        .HasForeignKey("Domain.Models.Accounts.DebitAccount", "Id")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

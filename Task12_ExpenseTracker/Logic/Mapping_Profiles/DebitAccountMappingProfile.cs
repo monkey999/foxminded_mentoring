@@ -16,7 +16,7 @@ namespace Logic.Mapping_Profiles
             CreateMap<CreateDebitAccountReqDTO, DebitAccount>()
                  .ForMember(dest => dest.CurrencyType, opt => opt.MapFrom(src => Enum.Parse(typeof(CurrencyType), src.CurrencyType)));
 
-            CreateMap<DebitAccount, GetDebitAccountRespDto.DebitAccountRespDto>()
+            CreateMap<DebitAccount, DebitAccountRespDto>()
                 .ForMember(dest => dest.CurrencyType, opt => opt.MapFrom(src => src.CurrencyType.ToString()));
 
             CreateMap<DebitAccount, CreateDebitAccountRespDTO>()
@@ -25,8 +25,10 @@ namespace Logic.Mapping_Profiles
             CreateMap<DebitAccount, UpdateDebitAccountRespDTO>()
                 .ForMember(dest => dest.CurrencyType, opt => opt.MapFrom(src => src.CurrencyType.ToString()));
 
-            CreateMap<UpdateDebitAccountReqDTO, DebitAccount>()
-                .ForMember(dest => dest.CurrencyType, opt => opt.MapFrom(src => Enum.Parse(typeof(CurrencyType), src.CurrencyType)));
+            CreateMap<DebitAccount, UpdateDebitAccountPatchRespDto>()
+                .ForMember(dest => dest.CurrencyType, opt => opt.MapFrom(src => src.CurrencyType.ToString()));
+
+            CreateMap<UpdateDebitAccountReqDTO, DebitAccount>();
         }
     }
 }

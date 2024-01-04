@@ -1,15 +1,12 @@
-﻿using Domain.Enums;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace Logic.DTO_Contracts.Requests.Create
 {
     public class CreateCategoryReqDTO
     {
+        [Required(ErrorMessage = $"CategoryName is required!")]
         public string CategoryName { get; set; }
+        [Required(ErrorMessage = $"CategoryType is required!")]
         public string CategoryType { get; set; }
     }
 }

@@ -1,154 +1,245 @@
 ﻿using AutoMapper;
-using Domain.Models;
+using DataAccess.Specifications.DebitAccountSpecs;
 using Domain.Models.Accounts;
 using Domain.RepoInterfaces;
 using Domain.ValueObjects;
 using Logic.DTO_Contracts.Requests.Create;
 using Logic.DTO_Contracts.Requests.Update;
 using Logic.DTO_Contracts.Responses.Create;
+using Logic.DTO_Contracts.Responses.Delete;
 using Logic.DTO_Contracts.Responses.Get;
 using Logic.DTO_Contracts.Responses.Update;
 using Logic.ServiceInterfaces;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.JsonPatch;
+using Microsoft.IdentityModel.Tokens;
+using System.Transactions;
 
 namespace Logic.Services
 {
     public class DebitAccountService : IDebitAccountService
     {
-        private readonly IUnitOfWork _unitOfWork;
+        private readonly IUnitOfWOrk _unitOfWork;
         private readonly IMapper _mapper;
+        private readonly IDebitAccountRepo _debitAccountRepo;
 
-        public DebitAccountService(IUnitOfWork unitOfWork, IMapper mapper)
+        public DebitAccountService(IUnitOfWOrk unitOfWork, IMapper mapper, IDebitAccountRepo debitAccountRepo)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
+            _debitAccountRepo = debitAccountRepo;
         }
 
-        public async Task<bool> CreateDebitAccountAsync(CreateDebitAccountReqDTO createDebitAccountDto)
+        public async Task<CreateDebitAccountRespDTO> CreateDebitAccountAsync(CreateDebitAccountReqDTO createDebitAccountDto, CancellationToken cancellationToken)
         {
-            var debitAccount = _mapper.Map<DebitAccount>(createDebitAccountDto);
-
-            await _unitOfWork.DebitAccounts.AddAsync(debitAccount);
-
-            var created = await _unitOfWork.SaveChangesAsyncWithResult();
-
-            return created > 0;
-        }
-
-        public async Task<CreateDebitAccountRespDTO> CreateDebitAccountWithResultAsync(CreateDebitAccountReqDTO createDebitAccountDto)
-        {
-            var debitAccount = _mapper.Map<DebitAccount>(createDebitAccountDto);
-
-            await _unitOfWork.DebitAccounts.AddAsync(debitAccount);
-
-            var created = await _unitOfWork.SaveChangesAsyncWithResult();
-
-            if (created > 0)
+            using (var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled))
             {
+                var debitAccount = _mapper.Map<DebitAccount>(createDebitAccountDto);
+
+                await _debitAccountRepo.AddAsync(debitAccount, cancellationToken);
+
                 var response = _mapper.Map<CreateDebitAccountRespDTO>(debitAccount);
 
+                if ((await _unitOfWork.SaveChangesAsyncWithResult(cancellationToken)) == 0)
+                {
+                    return new CreateDebitAccountRespDTO
+                    {
+                        ErrorMessage = new ErrorMessage
+                        {
+                            StatusCode = 400,
+                            Message = "Debit account wasn't created!"
+                        }
+                    };
+                }
+
+                scope.Complete();
+
                 return response;
             }
+        }
 
-            return new CreateDebitAccountRespDTO
+        public async Task<DeleteDebitAccountRespDTO> DeleteDebitAccountAsync(Guid debitAccountId, CancellationToken cancellationToken)
+        {
+            using (var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled))
             {
-                ErrorMessage = new ErrorMessage
+                if ((await _debitAccountRepo
+                    .FindByConditionAsync(cancellationToken, new DebitAccountGetByIdAsNoTrackingSpecification(x => x.Id == debitAccountId)))
+                        .IsNullOrEmpty())
                 {
-                    StatusCode = 500,
-                    Message = "Error occurred while creating DebitAccount."
+                    return new DeleteDebitAccountRespDTO
+                    {
+                        Deleted = false,
+                        Error = new ErrorMessage
+                        {
+                            StatusCode = 400,
+                            Message = "Such debit account doesn't exist!"
+                        }
+                    };
                 }
-            };
-        }
 
-        public async Task<bool> DeleteDebitAccountAsync(Guid debitAccountId)
-        {
-            var debitAccount = await GetDebitAccountByIdAsync(debitAccountId);
+                _debitAccountRepo.RemoveById(debitAccountId);
 
-            if (debitAccount == null)
-            {
-                return false;
-            }
-
-            _unitOfWork.DebitAccounts.RemoveById(debitAccountId);
-
-            var deleted = await _unitOfWork.SaveChangesAsyncWithResult();
-
-            return deleted > 0;
-        }
-
-        public async Task<GetDebitAccountRespDto> GetAllDebitAccountsAsync()
-        {
-            var debitAccounts = await _unitOfWork.DebitAccounts.GetAll().OrderBy(x => x.Id).ToListAsync();
-
-            if (debitAccounts != null)
-            {
-                var response = new GetDebitAccountRespDto
+                if ((await _unitOfWork.SaveChangesAsyncWithResult(cancellationToken)) == 0)
                 {
-                    DebitAccountsRespDto = _mapper.Map<IEnumerable<GetDebitAccountRespDto.DebitAccountRespDto>>(debitAccounts)
+                    return new DeleteDebitAccountRespDTO
+                    {
+                        Deleted = false,
+                        Error = new ErrorMessage
+                        {
+                            StatusCode = 400,
+                            Message = "Error occurred while deleting debit account!"
+                        }
+                    };
+                }
+
+                scope.Complete();
+
+                var response = new DeleteDebitAccountRespDTO
+                {
+                    Deleted = true
                 };
 
                 return response;
             }
-
-            return new GetDebitAccountRespDto
-            {
-                ErrorMessage = new ErrorMessage
-                {
-                    StatusCode = 404,
-                    Message = "DebitAccounts not found."
-                }
-            };
         }
 
-        public async Task<GetDebitAccountRespDto> GetDebitAccountByIdAsync(Guid debitAccountId)
+        public async Task<GetDebitAccountRespDto> GetAllDebitAccountsAsync(CancellationToken cancellationToken)
         {
-            var debitAccount = await _unitOfWork.DebitAccounts.FindByCondition(x => x.Id.Equals(debitAccountId))
-                .SingleOrDefaultAsync();
-
-            var response = new GetDebitAccountRespDto();
-
-            if (debitAccount != null)
+            if ((await _debitAccountRepo.FindByConditionAsync(cancellationToken, new DebitAccountGetAllSpecification()))
+                .IsNullOrEmpty())
             {
-                var debitAccountDto = _mapper.Map<GetDebitAccountRespDto.DebitAccountRespDto>(debitAccount);
-                response.DebitAccountsRespDto = new List<GetDebitAccountRespDto.DebitAccountRespDto> { debitAccountDto };
-            }
-            else
-            {
-                response.ErrorMessage = new ErrorMessage
+                return new GetDebitAccountRespDto
                 {
-                    StatusCode = 404,
-                    Message = "DebitAccount not found."
+                    ErrorMessage = new ErrorMessage
+                    {
+                        StatusCode = 404,
+                        Message = $"No debit accounts were found!"
+                    }
                 };
             }
+
+            var allDebitAccs = await _debitAccountRepo.FindByConditionAsync(cancellationToken, new DebitAccountGetAllSpecification());
+
+            var response = new GetDebitAccountRespDto
+            {
+                DebitAccountsRespDto = _mapper.Map<IEnumerable<DebitAccountRespDto>>(allDebitAccs)
+            };
 
             return response;
         }
 
-        public async Task<UpdateDebitAccountRespDTO> UpdateDebitAccountAsync(UpdateDebitAccountReqDTO debitAccountDto)
+        public async Task<GetDebitAccountRespDto> GetDebitAccountByIdAsync(Guid debitAccountId, CancellationToken cancellationToken)
         {
-            var debitAccountToUpdate = _mapper.Map<DebitAccount>(debitAccountDto);
-
-            _unitOfWork.DebitAccounts.Update(debitAccountToUpdate);
-
-            var updated = await _unitOfWork.SaveChangesAsyncWithResult();
-
-            if (updated > 0)
+            if ((await _debitAccountRepo.FindByConditionAsync(cancellationToken, new DebitAccountGetByIdAsNoTrackingSpecification(c => c.Id == debitAccountId)))
+                .IsNullOrEmpty())
             {
-                var updatedDebitAccount = _unitOfWork.DebitAccounts.FindByCondition(x => x.Id == debitAccountDto.Id).SingleOrDefault();
+                return new GetDebitAccountRespDto
+                {
+                    ErrorMessage = new ErrorMessage
+                    {
+                        StatusCode = 404,
+                        Message = "DebitAccount not found."
+                    }
+                };
+            }
 
-                var response = _mapper.Map<UpdateDebitAccountRespDTO>(updatedDebitAccount);
+            var debitAccountByIdDto = await _debitAccountRepo
+               .FindByConditionAsync(cancellationToken, new DebitAccountGetByIdSpecification(c => c.Id == debitAccountId));
+
+            var mappedDebitAccountDto = _mapper.Map<DebitAccountRespDto>(debitAccountByIdDto);
+
+            return new GetDebitAccountRespDto
+            {
+                DebitAccountsRespDto = new List<DebitAccountRespDto> { mappedDebitAccountDto }
+            };
+        }
+
+        public async Task<UpdateDebitAccountRespDTO> UpdateDebitAccountAsync(UpdateDebitAccountReqDTO debitAccountDto, CancellationToken cancellationToken)
+        {
+            using (var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled))
+            {
+                if ((await _debitAccountRepo
+                    .FindByConditionAsync(cancellationToken, new DebitAccountGetByIdAsNoTrackingSpecification(x => x.Id == debitAccountDto.Id)))
+                        .IsNullOrEmpty())
+                {
+                    return new UpdateDebitAccountRespDTO
+                    {
+                        ErrorMessage = new ErrorMessage
+                        {
+                            StatusCode = 404,
+                            Message = "Debit account not found."
+                        }
+                    };
+                }
+
+                var debitAccountToUpdate = ((await _debitAccountRepo
+                    .FindByConditionAsync(cancellationToken, new DebitAccountGetByIdSpecification(x => x.Id == debitAccountDto.Id))))
+                    .FirstOrDefault();
+
+                var mappedDebitAccountToUpdateDto = _mapper.Map(debitAccountDto, debitAccountToUpdate);
+
+                _debitAccountRepo.Update(mappedDebitAccountToUpdateDto);
+
+                if ((await _unitOfWork.SaveChangesAsyncWithResult(cancellationToken)) == 0)
+                {
+                    return new UpdateDebitAccountRespDTO
+                    {
+                        ErrorMessage = new ErrorMessage
+                        {
+                            StatusCode = 400,
+                            Message = "Error occurred while updating debit account!"
+                        }
+                    };
+                }
+
+                var response = _mapper.Map<UpdateDebitAccountRespDTO>(debitAccountToUpdate);
+
+                scope.Complete();
 
                 return response;
             }
+        }
 
-            return new UpdateDebitAccountRespDTO
+        public async Task<UpdateDebitAccountPatchRespDto> UpdateDebitAccountPatchAsync(Guid Id, JsonPatchDocument<DebitAccount> patchDocument, CancellationToken cancellationToken)
+        {
+            using (var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled))
             {
-                ErrorMessage = new ErrorMessage
+                if ((await _debitAccountRepo
+                 .FindByConditionAsync(cancellationToken, new DebitAccountGetByIdAsNoTrackingSpecification(x => x.Id == Id)))
+                     .IsNullOrEmpty())
                 {
-                    StatusCode = 500,
-                    Message = "Error occurred while updating DebitAccount. Probably you haven't provided DebitAccount ID!"
+                    return new UpdateDebitAccountPatchRespDto
+                    {
+                        ErrorMessage = new ErrorMessage
+                        {
+                            StatusCode = 404,
+                            Message = "Debit account not found."
+                        }
+                    };
                 }
-            };
+
+                var debitAccountToUpdate = (await _debitAccountRepo.FindByConditionAsync(cancellationToken, new DebitAccountGetByIdSpecification(x => x.Id == Id)))
+                    .FirstOrDefault();
+
+                patchDocument.ApplyTo(debitAccountToUpdate);
+
+                if ((await _unitOfWork.SaveChangesAsyncWithResult(cancellationToken)) == 0)
+                {
+                    return new UpdateDebitAccountPatchRespDto
+                    {
+                        ErrorMessage = new ErrorMessage
+                        {
+                            StatusCode = 400,
+                            Message = "Error occurred while patch updating debit account!"
+                        }
+                    };
+                }
+
+                var response = _mapper.Map<UpdateDebitAccountPatchRespDto>(debitAccountToUpdate);
+
+                scope.Complete();
+
+                return response;
+            }
         }
     }
 }

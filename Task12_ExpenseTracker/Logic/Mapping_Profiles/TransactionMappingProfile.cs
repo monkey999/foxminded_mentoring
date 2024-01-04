@@ -16,17 +16,22 @@ namespace Logic.Mapping_Profiles
             CreateMap<CreateTransactionReqDTO, Transaction>()
                 .ForMember(dest => dest.TransactionType, opt => opt.MapFrom(src => Enum.Parse(typeof(TransactionType), src.TransactionType)));
 
-            CreateMap<Transaction, GetTransactionRespDto.TransactionRespDto>()
+            CreateMap<Transaction, TransactionRespForCreateDto>()
                 .ForMember(dest => dest.TransactionType, opt => opt.MapFrom(src => src.TransactionType.ToString()));
 
-            CreateMap<Transaction, CreateTransactionRespDTO>()
+            CreateMap<Transaction, TransactionRespForGetDto>()
                 .ForMember(dest => dest.TransactionType, opt => opt.MapFrom(src => src.TransactionType.ToString()));
 
             CreateMap<Transaction, UpdateTransactionRespDTO>()
                 .ForMember(dest => dest.TransactionType, opt => opt.MapFrom(src => src.TransactionType.ToString()));
 
+            CreateMap<Transaction, UpdateTransactionPatchRespDto>()
+               .ForMember(dest => dest.TransactionType, opt => opt.MapFrom(src => src.TransactionType.ToString()));
+
             CreateMap<UpdateTransactionReqDTO, Transaction>()
                 .ForMember(dest => dest.TransactionType, opt => opt.MapFrom(src => Enum.Parse(typeof(TransactionType), src.TransactionType)));
+
+            CreateMap<TransactionRespForCreateDto, CreateTransactionReqDTO>().ReverseMap();
         }
     }
 }

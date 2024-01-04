@@ -1,158 +1,255 @@
 ﻿using AutoMapper;
-using Domain.Models;
+using DataAccess.Specifications.TransactionSpecs;
+using Domain.Enums;
 using Domain.RepoInterfaces;
 using Domain.ValueObjects;
 using Logic.DTO_Contracts.Requests.Create;
 using Logic.DTO_Contracts.Requests.Update;
 using Logic.DTO_Contracts.Responses.Create;
+using Logic.DTO_Contracts.Responses.Delete;
 using Logic.DTO_Contracts.Responses.Get;
 using Logic.DTO_Contracts.Responses.Update;
 using Logic.ServiceInterfaces;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.JsonPatch;
+using Microsoft.IdentityModel.Tokens;
+using System.Transactions;
 
 namespace Logic.Services
 {
     public class TransactionService : ITransactionService
     {
-        private readonly IUnitOfWork _unitOfWork;
+        private readonly IUnitOfWOrk _unitOfWork;
         private readonly IMapper _mapper;
+        private readonly ITransactionProcessor _transactionProcessor;
+        private readonly ITransactionRepo _transactionRepo;
 
-        public TransactionService(IUnitOfWork unitOfWork, IMapper mapper)
+        public TransactionService(IUnitOfWOrk unitOfWork, IMapper mapper, ITransactionProcessor transactionProcessor, ITransactionRepo transactionRepo)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
+            _transactionProcessor = transactionProcessor;
+            _transactionRepo = transactionRepo;
         }
 
-        public async Task<bool> CreateTransactionAsync(CreateTransactionReqDTO createTransactionDto)
+        public async Task<CreateTransactionRespDTO> CreateTransactionAsync(CreateTransactionReqDTO createTransactionDto, CancellationToken cancellationToken)
         {
-            var transaction = _mapper.Map<Transaction>(createTransactionDto);
-
-            await _unitOfWork.Transactions.AddAsync(transaction);
-
-            var created = await _unitOfWork.SaveChangesAsyncWithResult();
-
-            return created > 0;
-        }
-
-        public async Task<CreateTransactionRespDTO> CreateTransactionWithResultAsync(CreateTransactionReqDTO createTransactionDto)
-        {
-            var transaction = _mapper.Map<Transaction>(createTransactionDto);
-
-            var processedTransaction = await TransactionProcessor(transaction);
-
-            await _unitOfWork.Transactions.AddAsync(transaction);
-
-            //validation if receiver/sender pair match transactiontype
-            // if transactiontype is income => category sender(not account and no balance) , account receiver (account and has balance) etc.
-
-            var created = await _unitOfWork.SaveChangesAsyncWithResult();
-
-            if (created > 0)
+            using (var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled))
             {
-                var response = _mapper.Map<CreateTransactionRespDTO>(transaction);
+                if (!Array.Exists(Enum.GetNames(typeof(TransactionType)), value => value == createTransactionDto.TransactionType))
+                {
+                    return new CreateTransactionRespDTO
+                    {
+                        ErrorMessage = new ErrorMessage
+                        {
+                            StatusCode = 400,
+                            Message = "Such TransactionType doesn't exist!"
+                        }
+                    };
+                }
+
+                var processedTransaction = await _transactionProcessor.ProcessTransaction(createTransactionDto, cancellationToken);
+
+                if (processedTransaction.ErrorMessage is not null)
+                {
+                    return processedTransaction;
+                }
+
+                var response = new CreateTransactionRespDTO()
+                {
+                    TransactionDto = _mapper.Map<TransactionRespForCreateDto>(processedTransaction.TransactionDto)
+                };
+
+                scope.Complete();
 
                 return response;
             }
+        }
 
-            return new CreateTransactionRespDTO
+        public async Task<DeleteTransactionRespDTO> DeleteTransactionAsync(Guid transactionId, CancellationToken cancellationToken)
+        {
+            using (var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled))
             {
-                ErrorMessage = new ErrorMessage
+                if ((await _transactionRepo
+                    .FindByConditionAsync(cancellationToken, new TransactionGetByIdAsNoTrackingSpecification(x => x.Id == transactionId)))
+                        .IsNullOrEmpty())
                 {
-                    StatusCode = 500,
-                    Message = "Error occurred while creating Transaction."
+                    return new DeleteTransactionRespDTO
+                    {
+                        Deleted = false,
+                        Error = new ErrorMessage
+                        {
+                            StatusCode = 400,
+                            Message = "Such transaction doesn't exist!"
+                        }
+                    };
                 }
-            };
-        }
 
-        public async Task<bool> DeleteTransactionAsync(Guid transactionId)
-        {
-            var transaction = await GetTransactionByIdAsync(transactionId);
+                _transactionRepo.RemoveById(transactionId);
 
-            if (transaction == null)
-            {
-                return false;
-            }
-
-            _unitOfWork.Transactions.RemoveById(transactionId);
-
-            var deleted = await _unitOfWork.SaveChangesAsyncWithResult();
-
-            return deleted > 0;
-        }
-
-        public async Task<GetTransactionRespDto> GetAllTransactionsAsync()
-        {
-            var transactions = await _unitOfWork.Transactions.GetAll().OrderBy(x => x.Id).ToListAsync();
-
-            if (transactions != null)
-            {
-                var response = new GetTransactionRespDto
+                if ((await _unitOfWork.SaveChangesAsyncWithResult(cancellationToken)) == 0)
                 {
-                    TransactionsRespDto = _mapper.Map<IEnumerable<GetTransactionRespDto.TransactionRespDto>>(transactions)
+                    return new DeleteTransactionRespDTO
+                    {
+                        Deleted = false,
+                        Error = new ErrorMessage
+                        {
+                            StatusCode = 400,
+                            Message = "Error occurred while deleting transaction!"
+                        }
+                    };
+                }
+
+                scope.Complete();
+
+                var response = new DeleteTransactionRespDTO
+                {
+                    Deleted = true
                 };
 
                 return response;
             }
-
-            return new GetTransactionRespDto
-            {
-                ErrorMessage = new ErrorMessage
-                {
-                    StatusCode = 404,
-                    Message = "Transactions not found."
-                }
-            };
         }
 
-        public async Task<GetTransactionRespDto> GetTransactionByIdAsync(Guid transactionId)
+        public async Task<GetTransactionRespDto> GetAllTransactionsAsync(CancellationToken cancellationToken)
         {
-            var transaction = await _unitOfWork.Transactions.FindByCondition(x => x.Id.Equals(transactionId))
-                .SingleOrDefaultAsync();
-
-            var response = new GetTransactionRespDto();
-
-            if (transaction != null)
+            if ((await _transactionRepo.FindByConditionAsync(cancellationToken, new TransactionGetAllSpecification()))
+                .IsNullOrEmpty())
             {
-                var transactionDto = _mapper.Map<GetTransactionRespDto.TransactionRespDto>(transaction);
-                response.TransactionsRespDto = new List<GetTransactionRespDto.TransactionRespDto> { transactionDto };
-            }
-            else
-            {
-                response.ErrorMessage = new ErrorMessage
+                return new GetTransactionRespDto
                 {
-                    StatusCode = 404,
-                    Message = "Transaction not found."
+                    ErrorMessage = new ErrorMessage
+                    {
+                        StatusCode = 404,
+                        Message = "Transactions not found."
+                    }
                 };
             }
+
+            var allTransactions = await _transactionRepo
+                    .FindByConditionAsync(cancellationToken, new TransactionGetAllSpecification());
+
+            var response = new GetTransactionRespDto
+            {
+                TransactionsRespDto = _mapper.Map<IEnumerable<TransactionRespForGetDto>>(allTransactions)
+            };
 
             return response;
         }
 
-        public async Task<UpdateTransactionRespDTO> UpdateTransactionAsync(UpdateTransactionReqDTO transactionDto)
+        public async Task<GetTransactionRespDto> GetTransactionByIdAsync(Guid transactionId, CancellationToken cancellationToken)
         {
-            var transactionToUpdate = _mapper.Map<Transaction>(transactionDto);
-
-            _unitOfWork.Transactions.Update(transactionToUpdate);
-
-            var updated = await _unitOfWork.SaveChangesAsyncWithResult();
-
-            if (updated > 0)
+            if ((await _transactionRepo.FindByConditionAsync(cancellationToken, new TransactionGetByIdAsNoTrackingSpecification(c => c.Id == transactionId)))
+                .IsNullOrEmpty())
             {
-                var updatedTransaction = _unitOfWork.Transactions.FindByCondition(x => x.Id == transactionDto.Id).SingleOrDefault();
+                return new GetTransactionRespDto
+                {
+                    ErrorMessage = new ErrorMessage
+                    {
+                        StatusCode = 404,
+                        Message = "Transaction not found."
+                    }
+                };
+            }
 
-                var response = _mapper.Map<UpdateTransactionRespDTO>(updatedTransaction);
+            var transactionByIdDto = await _transactionRepo
+                .FindByConditionAsync(cancellationToken, new TransactionGetByIdSpecification(c => c.Id == transactionId));
+
+            var mappedTransactionDto = _mapper.Map<TransactionRespForGetDto>(transactionByIdDto);
+
+            return new GetTransactionRespDto
+            {
+                TransactionsRespDto = new List<TransactionRespForGetDto> { mappedTransactionDto }
+            };
+        }
+
+        public async Task<UpdateTransactionRespDTO> UpdateTransactionAsync(UpdateTransactionReqDTO transactionDto, CancellationToken cancellationToken)
+        {
+            using (var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled))
+            {
+                if ((await _transactionRepo
+                    .FindByConditionAsync(cancellationToken, new TransactionGetByIdAsNoTrackingSpecification(x => x.Id == transactionDto.Id)))
+                        .IsNullOrEmpty())
+                {
+                    return new UpdateTransactionRespDTO
+                    {
+                        ErrorMessage = new ErrorMessage
+                        {
+                            StatusCode = 404,
+                            Message = "Transaction not found."
+                        }
+                    };
+                }
+
+                var transactionToUpdate = ((await _transactionRepo
+                    .FindByConditionAsync(cancellationToken, new TransactionGetByIdSpecification(x => x.Id == transactionDto.Id))))
+                    .FirstOrDefault();
+
+                var mappedTransactionToUpdateDto = _mapper.Map(transactionDto, transactionToUpdate);
+
+                _transactionRepo.Update(mappedTransactionToUpdateDto);
+
+                if ((await _unitOfWork.SaveChangesAsyncWithResult(cancellationToken)) == 0)
+                {
+                    return new UpdateTransactionRespDTO
+                    {
+                        ErrorMessage = new ErrorMessage
+                        {
+                            StatusCode = 400,
+                            Message = "Error occurred while updating transaction!"
+                        }
+                    };
+                }
+
+                var response = _mapper.Map<UpdateTransactionRespDTO>(transactionToUpdate);
+
+                scope.Complete();
 
                 return response;
             }
+        }
 
-            return new UpdateTransactionRespDTO
+        public async Task<UpdateTransactionPatchRespDto> UpdateTransactionPatchAsync(Guid Id, JsonPatchDocument<Domain.Models.Transaction> patchDocument, CancellationToken cancellationToken)
+        {
+            using (var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled))
             {
-                ErrorMessage = new ErrorMessage
+                if ((await _transactionRepo
+                      .FindByConditionAsync(cancellationToken, new TransactionGetByIdAsNoTrackingSpecification(x => x.Id == Id)))
+                          .IsNullOrEmpty())
                 {
-                    StatusCode = 500,
-                    Message = "Error occurred while updating Transaction. Probably you haven't provided Transaction ID!"
+                    return new UpdateTransactionPatchRespDto
+                    {
+                        ErrorMessage = new ErrorMessage
+                        {
+                            StatusCode = 404,
+                            Message = "transaction not found."
+                        }
+                    };
                 }
-            };
+
+                var transactionToUpdate = (await _transactionRepo
+                    .FindByConditionAsync(cancellationToken, new TransactionGetByIdSpecification(x => x.Id == Id)))
+                    .FirstOrDefault();
+
+                patchDocument.ApplyTo(transactionToUpdate);
+
+                if ((await _unitOfWork.SaveChangesAsyncWithResult(cancellationToken)) == 0)
+                {
+                    return new UpdateTransactionPatchRespDto
+                    {
+                        ErrorMessage = new ErrorMessage
+                        {
+                            StatusCode = 400,
+                            Message = "Error occurred while patch updating transaction!"
+                        }
+                    };
+                }
+
+                var response = _mapper.Map<UpdateTransactionPatchRespDto>(transactionToUpdate);
+
+                scope.Complete();
+
+                return response;
+            }
         }
     }
 }

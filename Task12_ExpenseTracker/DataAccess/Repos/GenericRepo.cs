@@ -1,6 +1,5 @@
 ﻿using Domain.RepoInterfaces;
 using Microsoft.EntityFrameworkCore;
-using System.Linq.Expressions;
 
 namespace DataAccess.Repos
 {
@@ -15,34 +14,50 @@ namespace DataAccess.Repos
             _dbSet = context.Set<T>();
         }
 
-        public IQueryable<T> GetAll()
+        public async Task<IEnumerable<T>> FindByConditionAsync(CancellationToken cancellationToken, ISpecification<T> specification = null)
         {
-            return _dbSet;
+            var query = _dbSet.AsQueryable();
+
+            if (specification.Criteria != null)
+            {
+                query = query.Where(specification.Criteria);
+            }
+
+            foreach (var include in specification.Includes)
+            {
+                query = query.Include(include);
+            }
+
+            if (specification.AsNoTracking)
+            {
+                query = query.AsNoTracking(); 
+            }
+
+            if (specification.OrderBy != null)
+            {
+                query = query.OrderBy(specification.OrderBy);
+            }
+            else if (specification.OrderByDescending != null)
+            {
+                query = query.OrderByDescending(specification.OrderByDescending);
+            }
+
+            return await query.ToListAsync(cancellationToken);
         }
 
-        public IQueryable<T> FindByCondition(Expression<Func<T, bool>> expression)
+        public async Task<int> SaveChangesAsyncWithResult(CancellationToken cancellationToken)
         {
-            return _dbSet.Where(expression);
+            return await _context.SaveChangesAsync(cancellationToken);
         }
 
-        public async Task<int> SaveChangesAsyncWithResult()
+        public async Task SaveChangesAsync(CancellationToken cancellationToken)
         {
-            return await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(cancellationToken);
         }
 
-        public async Task SaveChangesAsync()
+        public async Task AddAsync(T entity, CancellationToken cancellationToken)
         {
-            await _context.SaveChangesAsync();
-        }
-
-        public async Task AddAsync(T entity)
-        {
-            await _dbSet.AddAsync(entity);
-        }
-
-        public async Task AddRangeAsync(IEnumerable<T> entities)
-        {
-            await _dbSet.AddRangeAsync(entities);
+            await _dbSet.AddAsync(entity, cancellationToken);
         }
 
         public void RemoveById(K id)
@@ -50,19 +65,9 @@ namespace DataAccess.Repos
             _dbSet.Remove(_dbSet.Find(id));
         }
 
-        public void RemoveRange(IEnumerable<T> entities)
-        {
-            _dbSet.RemoveRange(entities);
-        }
-
         public void Update(T entity)
         {
             _dbSet.Update(entity);
-        }
-
-        public void UpdateRange(IEnumerable<T> entities)
-        {
-            _dbSet.UpdateRange(entities);
         }
     }
 }
